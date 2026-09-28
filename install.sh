@@ -190,6 +190,7 @@ install_base() {
 
   local -a pkgs=(
     base linux linux-headers linux-firmware sof-firmware "${ucode[@]}"
+    mkinitcpio iptables
     base-devel btrfs-progs
     grub efibootmgr grub-btrfs inotify-tools
     snapper snap-pac
@@ -197,7 +198,7 @@ install_base() {
   )
 
   log "Installation du système de base (pacstrap)… ça peut prendre un moment."
-  pacstrap -K /mnt "${pkgs[@]}"
+  pacstrap -K /mnt "${pkgs[@]}" --noconfirm
 
   log "Génération de fstab…"
   genfstab -U /mnt > /mnt/etc/fstab

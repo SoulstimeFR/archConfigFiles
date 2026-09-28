@@ -17,7 +17,7 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/SoulstimeFR/archConfigFiles.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 TARGET_DIR="${TARGET_DIR:-/root/arch-setup}"
-KEYMAP="${KEYMAP:-}"      # ex : fr, us, de-latin1 (vide = ne rien changer)
+KEYMAP="${KEYMAP:-fr}"      # ex : fr, us, de-latin1 (vide = ne rien changer)
 FORCE="${FORCE:-0}"       # 1 = autorise l'exécution hors de l'ISO live
 
 # --- Affichage ----------------------------------------------------------------

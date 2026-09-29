@@ -190,7 +190,7 @@ install_base() {
 
   local -a pkgs=(
     base linux linux-headers linux-firmware sof-firmware "${ucode[@]}"
-    mkinitcpio iptables
+    mkinitcpio iptables            # les nommer évite les questions "quel fournisseur ?"
     base-devel btrfs-progs
     grub efibootmgr grub-btrfs inotify-tools
     snapper snap-pac
@@ -224,6 +224,63 @@ configure_in_chroot() {
 
   log "Définition du mot de passe de $NEW_USER…"
   printf '%s:%s\n' "$NEW_USER" "$PASSWORD" | arch-chroot /mnt chpasswd
+
+  # Copie du dépôt dans le home de l'utilisateur : les scripts firstboot/ doivent
+  # être lancés en utilisateur normal, qui n'a pas accès à /root.
+  log "Copie du dépôt dans /home/$NEW_USER/arch-setup…"
+  cp -a /mnt/root/arch-setup "/mnt/home/$NEW_USER/arch-setup"
+  arch-chroot /mnt chown -R "$NEW_USER:$NEW_USER" "/home/$NEW_USER/arch-setup"
+}
+
+# --- 6b. Wi-Fi : reprend la connexion utilisée pendant l'installation --------
+# Le Wi-Fi configuré avec iwctl sur l'ISO n'est pas conservé : sans cette étape,
+# le système installé démarre sans connaître le réseau. On crée donc un profil
+# NetworkManager pour le Wi-Fi actuellement utilisé (le mot de passe est demandé).
+copy_wifi_profile() {
+  [ "$ASSUME_YES" = "1" ] && return 0
+
+  local iface ssid pass uuid file
+  iface="$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2; exit}')"
+  [ -n "$iface" ] || return 0
+  ssid="$(iw dev "$iface" link 2>/dev/null | sed -n 's/^[[:space:]]*SSID: //p')"
+  [ -n "$ssid" ] || return 0   # connecté par câble : rien à copier
+
+  say ""
+  say "Le Wi-Fi « $ssid » est utilisé pendant l'installation."
+  printf 'Mot de passe de ce Wi-Fi (vide = ne pas le copier) : ' >/dev/tty
+  read -rs pass </dev/tty
+  printf '\n' >/dev/tty
+  [ -n "$pass" ] || return 0
+
+  uuid="$(cat /proc/sys/kernel/random/uuid)"
+  file="/mnt/etc/NetworkManager/system-connections/${ssid//\//_}.nmconnection"
+  mkdir -p "$(dirname "$file")"
+  (
+    umask 077
+    cat > "$file" <<EOF
+[connection]
+id=$ssid
+uuid=$uuid
+type=wifi
+autoconnect=true
+
+[wifi]
+mode=infrastructure
+ssid=$ssid
+
+[wifi-security]
+key-mgmt=wpa-psk
+psk=$pass
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto
+EOF
+  )
+  chmod 600 "$file"
+  log "Connexion Wi-Fi « $ssid » copiée dans le nouveau système."
 }
 
 # --- 7. Fin -------------------------------------------------------------------
@@ -245,6 +302,7 @@ main() {
   partition_and_format
   install_base
   configure_in_chroot
+  copy_wifi_profile
   finish
 }
 

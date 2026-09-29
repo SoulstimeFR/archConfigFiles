@@ -39,6 +39,29 @@ paru -S --needed --noconfirm caelestia-cli
 log "Lancement de 'caelestia install' (répond aux questions éventuelles)…"
 caelestia install
 
+# --- 2b. Disposition du clavier dans Hyprland ---------------------------------
+# Caelestia démarre en clavier "us" par défaut. On reprend la disposition de la
+# console (KEYMAP de /etc/vconsole.conf, fixée par install.sh), sauf si KB_LAYOUT
+# est fourni. Le réglage va dans hypr-user.lua, que l'installation et les mises
+# à jour de Caelestia ne modifient jamais.
+km="$(sed -n 's/^KEYMAP=//p' /etc/vconsole.conf 2>/dev/null | head -n1 || true)"
+KB_LAYOUT="${KB_LAYOUT:-${km%%-*}}"     # ex : "de-latin1" -> "de"
+KB_LAYOUT="${KB_LAYOUT:-fr}"
+user_lua="$HOME/.config/caelestia/hypr-user.lua"
+mkdir -p "$(dirname "$user_lua")"
+if ! grep -q 'arch-setup: keyboard' "$user_lua" 2>/dev/null; then
+  log "Clavier Hyprland : disposition « $KB_LAYOUT »…"
+  cat >> "$user_lua" <<EOF
+
+-- arch-setup: keyboard (ajouté par firstboot/20-hyprland-caelestia.sh)
+hl.config({
+  input = {
+    kb_layout = "$KB_LAYOUT",
+  },
+})
+EOF
+fi
+
 # --- 3. Gestionnaire de connexion : greetd + tuigreet -------------------------
 log "Installation de greetd + tuigreet…"
 sudo pacman -S --needed --noconfirm greetd greetd-tuigreet

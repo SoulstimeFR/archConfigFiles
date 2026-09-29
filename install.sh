@@ -22,7 +22,7 @@ exec > >(tee -a "$LOG") 2>&1
 
 # --- Configuration ------------------------------------------------------------
 TIMEZONE="${TIMEZONE:-Europe/Paris}"
-LOCALE="${LOCALE:-fr_FR.UTF-8}"
+LOCALE="${LOCALE:-en_US.UTF-8}"
 KEYMAP="${KEYMAP:-fr}"
 NEW_HOST="${NEW_HOST:-}"
 NEW_USER="${NEW_USER:-}"

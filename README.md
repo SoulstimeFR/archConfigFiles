@@ -43,6 +43,9 @@ Si tu n'as pas de réseau, connecte-toi avec `nmtui` (menu texte) ou `nmcli devi
 bash ~/arch-setup/firstboot/20-hyprland-caelestia.sh
 bash ~/arch-setup/firstboot/30-cachyos-kernel.sh
 sudo reboot
+# puis, après ce redémarrage :
+bash ~/arch-setup/firstboot/40-drivers.sh
+sudo reboot
 ```
 
 Au redémarrage, l'écran de connexion (greetd) apparaît, puis Hyprland avec Caelestia.
@@ -100,6 +103,18 @@ Si tu vois des erreurs `404` sur des paquets : ce sont des miroirs CachyOS en re
 - Ajoute les dépôts CachyOS (script officiel) et installe `linux-cachyos` + ses en-têtes.
 - Place le noyau CachyOS en tête du menu GRUB. Le noyau Arch `linux` reste disponible dans « Advanced options » comme secours.
 
+### Pilotes (`firstboot/40-drivers.sh`)
+
+À lancer après le noyau CachyOS (les dépôts CachyOS fournissent `chwd`, que le script installe). Ignoré dans une machine virtuelle.
+
+- Installe `pciutils` (pour `lspci`, absent d'Arch minimal), détecte les cartes graphiques et installe les pilotes libres de base : Mesa, Vulkan, accélération vidéo Intel/AMD.
+- Installe `chwd` (il n'est pas fourni d'office par les dépôts CachyOS) puis lance `chwd -a` (CachyOS Hardware Detection), qui installe le bon profil de pilotes, y compris NVIDIA et les portables hybrides (PRIME).
+- Si `chwd` est absent (dépôts CachyOS non configurés) ou n'installe aucun pilote NVIDIA, repli sur les paquets standard d'Arch pour une carte récente (Turing / RTX 20 et plus) : `nvidia-open` avec le noyau Arch, ou `nvidia-open-dkms` + en-têtes avec un autre noyau, plus `nvidia-utils`, `lib32-nvidia-utils`, `nvidia-prime` et `nvidia-settings`.
+- Reconstruit l'initramfs et le menu GRUB après l'installation des pilotes.
+- Portable : `power-profiles-daemon`, `brightnessctl` et, sur Intel, `thermald`.
+- Active le service Bluetooth si un contrôleur est présent.
+- Portable hybride : `prime-run <commande>` lance une application sur la carte NVIDIA.
+
 ---
 
 ## Structure du dépôt
@@ -113,7 +128,8 @@ archConfigFiles/
 ├── firstboot/
 │   ├── 10-paru.sh                   # helper AUR
 │   ├── 20-hyprland-caelestia.sh     # Hyprland, Caelestia, greetd, clavier
-│   └── 30-cachyos-kernel.sh         # noyau CachyOS
+│   ├── 30-cachyos-kernel.sh         # noyau CachyOS
+│   └── 40-drivers.sh                # pilotes graphiques (chwd), énergie, Bluetooth
 ├── .gitattributes                   # force les fins de ligne LF
 └── README.md
 ```
@@ -201,6 +217,7 @@ La VM valide l'installateur, Btrfs, GRUB, paru, l'installation de Caelestia et l
 | Installation de base (Btrfs, GRUB, Snapper) | Validé en VM et sur le G5 KF |
 | `paru`, Caelestia, greetd | Validé sur le G5 KF |
 | Noyau CachyOS | Installé sur le G5 KF |
+| Pilotes (`40-drivers.sh`, chwd, NVIDIA/Optimus) | Non validé |
 | Copie du Wi-Fi vers le système installé | Non validé |
 | Langue par défaut en anglais | Non validé |
 | Clavier AZERTY automatique dans Hyprland | Non validé |
@@ -210,12 +227,11 @@ La VM valide l'installateur, Btrfs, GRUB, paru, l'installation de Caelestia et l
 
 ## À faire
 
-- Profil matériel du G5 KF (NVIDIA / Optimus, Bluetooth, thermique) dans un dossier `machines/`.
-- Liste d'applications (`packages/apps.txt`) et script `firstboot/40-apps.sh`.
+- Profil matériel spécifique au G5 KF (touches Gigabyte, ventilateurs) si nécessaire : la détection générique est dans `40-drivers.sh`.
+- Liste d'applications (`packages/apps.txt`) et script `firstboot/50-apps.sh`.
 - Lanceur unique `firstboot/run.sh` qui enchaîne tous les scripts.
 - Dotfiles personnels (chezmoi) : suivre `~/.config/caelestia/`, jamais `~/.config/hypr/`.
 - Script de restauration définitive d'un snapshot (`rollback`).
-- Activer `bluetooth.service`.
 - Automatiser les questions de `caelestia install` (options de la CLI à étudier).
 - Sauvegarde régulière de `/home` (restic ou borg).
 

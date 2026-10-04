@@ -36,14 +36,12 @@ sudo -v
 KEEPALIVE_PID=$!
 trap 'kill "$KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
-# --- lspci (paquet pciutils) : absent d'une installation Arch minimale -------------
-sudo pacman -S --needed --noconfirm pciutils || die "Impossible d'installer pciutils."
-
 # --- Outils nécessaires à la détection ------------------------------------------
-# pciutils fournit lspci : sans lui, la détection ne verrait aucun GPU en silence.
+# pciutils fournit lspci : absent d'une installation Arch minimale.
 if ! command -v lspci >/dev/null 2>&1; then
   log "Installation de pciutils (lspci)…"
-  sudo pacman -S --needed --noconfirm pciutils
+  sudo pacman -S --needed --noconfirm pciutils \
+    || die "Impossible d'installer pciutils."
 fi
 command -v lspci >/dev/null 2>&1 || die "lspci introuvable : impossible de détecter le matériel."
 
@@ -157,9 +155,14 @@ else
 fi
 
 if [ "$rebuild" = "1" ]; then
-  log "Reconstruction de l'initramfs et du menu GRUB…"
+  log "Reconstruction de l'initramfs…"
   sudo mkinitcpio -P
-  sudo grub-mkconfig -o /boot/grub/grub.cfg
+  if command -v grub-mkconfig >/dev/null 2>&1 && [ -d /boot/grub ]; then
+    log "Reconstruction du menu GRUB…"
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+  else
+    warn "GRUB introuvable : menu de démarrage non régénéré."
+  fi
 fi
 
 # --- 3. Portable : énergie et température --------------------------------------
@@ -178,11 +181,11 @@ fi
 
 # --- 4. Bluetooth ---------------------------------------------------------------
 if compgen -G '/sys/class/bluetooth/hci*' >/dev/null; then
-  if pacman -Q bluez >/dev/null 2>&1; then
-    log "Bluetooth détecté : activation du service…"
+  log "Bluetooth détecté : installation et activation…"
+  if sudo pacman -S --needed --noconfirm bluez bluez-utils; then
     sudo systemctl enable --now bluetooth.service || warn "Activation de bluetooth impossible."
   else
-    warn "Contrôleur Bluetooth détecté mais le paquet bluez est absent."
+    warn "Installation de bluez impossible."
   fi
 fi
 

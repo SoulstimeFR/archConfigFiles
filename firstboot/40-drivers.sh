@@ -74,8 +74,39 @@ log "Installation des pilotes libres : ${pkgs[*]}"
 sudo pacman -S --needed --noconfirm "${pkgs[@]}" \
   || warn "Installation partielle (miroirs ?). Réessaie plus tard : sudo pacman -Syu"
 
+# Repli sans chwd : pilote NVIDIA ouvert des dépôts Arch (cartes Turing / RTX 20 et plus récentes).
+install_nvidia_arch() {
+  if ! printf '%s' "$gpus" | grep -qiE 'RTX|GTX 16'; then
+    warn "Carte NVIDIA antérieure à la génération Turing : les modules ouverts ne la gèrent pas."
+    warn "Choisis un pilote « legacy » à la main : https://wiki.archlinux.org/title/NVIDIA"
+    return 1
+  fi
+
+  local -a pkgs=(nvidia-utils lib32-nvidia-utils nvidia-prime nvidia-settings)
+  local use_dkms=0 k
+  for k in linux-cachyos linux-lts linux-zen linux-hardened; do
+    if pacman -Q "$k" >/dev/null 2>&1; then use_dkms=1; fi
+  done
+
+  if [ "$use_dkms" = "1" ]; then
+    # Plusieurs noyaux : le module est recompilé (DKMS) pour chacun, d'où les en-têtes.
+    pkgs=(nvidia-open-dkms "${pkgs[@]}")
+    for k in linux linux-cachyos linux-lts linux-zen linux-hardened; do
+      if pacman -Q "$k" >/dev/null 2>&1; then pkgs+=("${k}-headers"); fi
+    done
+    log "Installation du pilote NVIDIA ouvert (DKMS) : ${pkgs[*]}"
+    sudo pacman -S --needed --noconfirm "${pkgs[@]}"
+  else
+    # Noyau Arch standard : module précompilé, qui doit correspondre exactement au noyau
+    # (d'où une mise à jour complète du système : -Syu).
+    pkgs=(nvidia-open "${pkgs[@]}")
+    log "Installation du pilote NVIDIA ouvert (précompilé) : ${pkgs[*]}"
+    sudo pacman -Syu --needed --noconfirm "${pkgs[@]}"
+  fi
+}
+
 # --- 2. Pilotes propriétaires / hybrides avec chwd -----------------------------
-chwd_ok=0
+rebuild=0   # passe à 1 quand des pilotes ont été installés (initramfs + GRUB à régénérer)
 # chwd n'est pas installé d'office avec les dépôts ni avec le noyau CachyOS.
 if ! command -v chwd >/dev/null 2>&1 && pacman -Si chwd >/dev/null 2>&1; then
   log "Installation de chwd (dépôt CachyOS)…"
@@ -84,30 +115,30 @@ fi
 if command -v chwd >/dev/null 2>&1; then
   log "Configuration automatique du matériel avec chwd (peut poser des questions)…"
   if sudo chwd -a; then
-    chwd_ok=1
+    rebuild=1
   else
     warn "chwd a échoué. Cause fréquente : dépôts CachyOS en cours de synchronisation"
     warn "(versions de paquets NVIDIA incohérentes). Réessaie plus tard :"
     warn "  sudo pacman -Syyu && sudo chwd -a"
   fi
-elif has 'nvidia'; then
-  warn "GPU NVIDIA détecté mais chwd est absent : lance d'abord firstboot/30-cachyos-kernel.sh."
 fi
 
-if [ "$chwd_ok" = "1" ]; then
+# Repli : GPU NVIDIA détecté mais aucun pilote installé (chwd absent, ou terminé sans
+# rien installer) -> paquets standard d'Arch.
+if has 'nvidia' && ! pacman -Q nvidia-utils >/dev/null 2>&1; then
+  warn "Aucun pilote NVIDIA installé après chwd : repli sur les paquets standard d'Arch."
+  warn "(type de châssis DMI : $(cat /sys/class/dmi/id/chassis_type 2>/dev/null || echo inconnu))"
+  if install_nvidia_arch; then
+    rebuild=1
+  else
+    warn "Installation du pilote NVIDIA impossible : voir les messages ci-dessus."
+  fi
+fi
+
+if [ "$rebuild" = "1" ]; then
   log "Reconstruction de l'initramfs et du menu GRUB…"
   sudo mkinitcpio -P
   sudo grub-mkconfig -o /boot/grub/grub.cfg
-fi
-
-# Vérification : chwd peut se terminer sans erreur sans rien installer (aucun profil
-# ne correspond au matériel, par exemple à cause du type de châssis du portable).
-if has 'nvidia' && ! pacman -Q nvidia-utils >/dev/null 2>&1; then
-  warn "GPU NVIDIA détecté, mais aucun pilote NVIDIA n'est installé (nvidia-utils absent)."
-  warn "Profils que chwd propose pour ce matériel :"
-  { sudo chwd --list 2>&1 || true; } | sed 's/^/    /' >&2
-  warn "Type de châssis (DMI) : $(cat /sys/class/dmi/id/chassis_type 2>/dev/null || echo inconnu)"
-  warn "Copie ces informations pour choisir le bon profil à la main."
 fi
 
 # --- 3. Portable : énergie et température --------------------------------------

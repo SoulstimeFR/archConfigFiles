@@ -135,6 +135,27 @@ if has 'nvidia' && ! pacman -Q nvidia-utils >/dev/null 2>&1; then
   fi
 fi
 
+# --- Suppression de l'ancien noyau Arch ---------------------------------------
+if [[ "$(uname -r)" == *cachyos* ]] \
+   && pacman -Q linux >/dev/null 2>&1; then
+  log "Noyau CachyOS actif : suppression de l'ancien noyau Arch…"
+
+  arch_kernel_pkgs=(linux)
+
+  if pacman -Q linux-headers >/dev/null 2>&1; then
+    arch_kernel_pkgs+=(linux-headers)
+  fi
+
+  if sudo pacman -Rns --noconfirm "${arch_kernel_pkgs[@]}"; then
+    log "Ancien noyau Arch supprimé."
+    rebuild=1
+  else
+    warn "Impossible de supprimer l'ancien noyau Arch : il est conservé."
+  fi
+else
+  log "Noyau Arch conservé : le noyau CachyOS n'est pas actif ou linux est absent."
+fi
+
 if [ "$rebuild" = "1" ]; then
   log "Reconstruction de l'initramfs et du menu GRUB…"
   sudo mkinitcpio -P

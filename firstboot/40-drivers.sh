@@ -36,10 +36,29 @@ sudo -v
 KEEPALIVE_PID=$!
 trap 'kill "$KEEPALIVE_PID" 2>/dev/null || true' EXIT
 
+# --- lspci (paquet pciutils) : absent d'une installation Arch minimale -------------
+sudo pacman -S --needed --noconfirm pciutils || die "Impossible d'installer pciutils."
+
+# --- Outils nécessaires à la détection ------------------------------------------
+# pciutils fournit lspci : sans lui, la détection ne verrait aucun GPU en silence.
+if ! command -v lspci >/dev/null 2>&1; then
+  log "Installation de pciutils (lspci)…"
+  sudo pacman -S --needed --noconfirm pciutils
+fi
+command -v lspci >/dev/null 2>&1 || die "lspci introuvable : impossible de détecter le matériel."
+
+# chwd vient du dépôt CachyOS et n'est PAS installé par cachyos-repo.sh.
+if ! command -v chwd >/dev/null 2>&1 && grep -q '^\[cachyos' /etc/pacman.conf; then
+  log "Installation de chwd (dépôt CachyOS)…"
+  sudo pacman -S --needed --noconfirm chwd \
+    || warn "Installation de chwd impossible (dépôts CachyOS en cours de synchronisation ?)."
+fi
+
 # --- Détection des cartes graphiques ------------------------------------------
 gpus="$(lspci -nn | grep -Ei 'vga|3d|display' || true)"
 log "Cartes graphiques détectées :"
 printf '%s\n' "$gpus"
+[ -n "$gpus" ] || warn "Aucune carte graphique détectée par lspci : détection impossible."
 has() { printf '%s' "$gpus" | grep -qiE "$1"; }
 
 # --- 1. Pilotes libres de base (Mesa, Vulkan, vidéo) ---------------------------
@@ -57,6 +76,11 @@ sudo pacman -S --needed --noconfirm "${pkgs[@]}" \
 
 # --- 2. Pilotes propriétaires / hybrides avec chwd -----------------------------
 chwd_ok=0
+# chwd n'est pas installé d'office avec les dépôts ni avec le noyau CachyOS.
+if ! command -v chwd >/dev/null 2>&1 && pacman -Si chwd >/dev/null 2>&1; then
+  log "Installation de chwd (dépôt CachyOS)…"
+  sudo pacman -S --needed --noconfirm chwd || warn "Installation de chwd impossible."
+fi
 if command -v chwd >/dev/null 2>&1; then
   log "Configuration automatique du matériel avec chwd (peut poser des questions)…"
   if sudo chwd -a; then
@@ -74,6 +98,16 @@ if [ "$chwd_ok" = "1" ]; then
   log "Reconstruction de l'initramfs et du menu GRUB…"
   sudo mkinitcpio -P
   sudo grub-mkconfig -o /boot/grub/grub.cfg
+fi
+
+# Vérification : chwd peut se terminer sans erreur sans rien installer (aucun profil
+# ne correspond au matériel, par exemple à cause du type de châssis du portable).
+if has 'nvidia' && ! pacman -Q nvidia-utils >/dev/null 2>&1; then
+  warn "GPU NVIDIA détecté, mais aucun pilote NVIDIA n'est installé (nvidia-utils absent)."
+  warn "Profils que chwd propose pour ce matériel :"
+  { sudo chwd --list 2>&1 || true; } | sed 's/^/    /' >&2
+  warn "Type de châssis (DMI) : $(cat /sys/class/dmi/id/chassis_type 2>/dev/null || echo inconnu)"
+  warn "Copie ces informations pour choisir le bon profil à la main."
 fi
 
 # --- 3. Portable : énergie et température --------------------------------------

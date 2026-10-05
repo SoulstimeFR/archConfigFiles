@@ -110,6 +110,15 @@ Le script d'installation ne prend pas en charge le mode BIOS/legacy.
 
 ## Installation depuis l'ISO Arch
 
+### (Optionnel) Changement de langue d'entrée
+
+Permet de changer la langue d'entrée (clavier) d'US (QWERTY) à FR (AZERTY).
+
+```bash
+loadkeys fr
+```
+
+
 ### Connexion Ethernet
 
 Avec une connexion Ethernet, aucune configuration particulière n'est généralement nécessaire.

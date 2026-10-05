@@ -57,8 +57,21 @@ timedatectl set-ntp true || warn "Synchronisation de l'heure impossible, on cont
 
 # --- Git ----------------------------------------------------------------------
 if ! command -v git >/dev/null 2>&1; then
+  log "Initialisation du trousseau pacman…"
+
+  if [ ! -d /etc/pacman.d/gnupg ]; then
+    mkdir -p /etc/pacman.d/gnupg
+    chmod 700 /etc/pacman.d/gnupg
+    chown root:root /etc/pacman.d/gnupg
+  fi
+
+  if ! pacman-key --list-keys >/dev/null 2>&1; then
+    pacman-key --init
+    pacman-key --populate archlinux
+  fi
+
   log "Installation de git…"
-  pacman -Sy --noconfirm --needed archlinux-keyring git
+  pacman -Sy --needed --noconfirm archlinux-keyring git
 fi
 
 # --- Récupération du dépôt ----------------------------------------------------

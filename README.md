@@ -154,9 +154,7 @@ ping -c 3 google.com
 Depuis l'ISO Arch :
 
 ```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/SoulstimeFR/archConfigFiles/main/bootstrap.sh \
-  | bash
+curl -fsSL https://raw.githubusercontent.com/SoulstimeFR/archConfigFiles/main/bootstrap.sh | bash
 ```
 
 Le script demande notamment :

@@ -1,350 +1,247 @@
 #!/usr/bin/env bash
-# firstboot/20-hyprland-caelestia.sh
+
+# firstboot/50-apps.sh : installe automatiquement les applications quotidiennes.
+# À lancer en UTILISATEUR NORMAL, après 40-drivers.sh.
 #
-# Installe Hyprland + Caelestia et applique la configuration personnelle :
-#   - wallpaper par défaut ;
-#   - scheme dynamique ;
-#   - GIF personnalisé du menu d'alimentation ;
-#   - Opera comme navigateur par défaut ;
-#   - SUPER + W pour lancer Opera ;
-#   - disposition clavier ;
-#   - greetd + tuigreet.
+# Méthodes utilisées :
+# - pacman : paquets officiels Arch/CachyOS
+# - paru   : paquets AUR
+# - npm    : Mermaid CLI
 #
-# Assets attendus dans le dépôt :
-#   assets/wallpapers/default.jpg
-#   assets/gifs/session.gif
-#
-# À lancer avec un utilisateur normal, pas avec sudo.
+# Certaines applications peuvent être absentes ou changer de nom dans l'AUR.
+# Le script continue malgré les erreurs et affiche un résumé à la fin.
 
-set -euo pipefail
+set -uo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-# --- Fichiers sources dans le dépôt -------------------------------------------
-
-WALLPAPER_SOURCE="$REPO_DIR/assets/wallpapers/default.jpg"
-SESSION_GIF_SOURCE="$REPO_DIR/assets/gifs/session.gif"
-
-# --- Chemins de destination ---------------------------------------------------
-
-WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
-INSTALLED_WALLPAPER="$WALLPAPER_DIR/default.jpg"
-
-CAELESTIA_CONFIG_DIR="$HOME/.config/caelestia"
-SHELL_CONFIG="$CAELESTIA_CONFIG_DIR/shell.json"
-HYPR_VARS="$CAELESTIA_CONFIG_DIR/hypr-vars.lua"
-HYPR_USER="$CAELESTIA_CONFIG_DIR/hypr-user.lua"
-
-CAELESTIA_ASSET_DIR="$CAELESTIA_CONFIG_DIR/assets"
-INSTALLED_SESSION_GIF="$CAELESTIA_ASSET_DIR/session.gif"
-
-# --- Fonctions ----------------------------------------------------------------
-
-log() {
-  printf '\033[1;34m[caelestia]\033[0m %s\n' "$*"
-}
-
-ok() {
-  printf '\033[1;32m[caelestia]\033[0m %s\n' "$*"
-}
-
-warn() {
-  printf '\033[1;33m[caelestia]\033[0m %s\n' "$*" >&2
-}
-
-die() {
-  printf '\033[1;31m[caelestia]\033[0m %s\n' "$*" >&2
-  exit 1
-}
-
-# --- Vérifications ------------------------------------------------------------
+log()  { printf '\033[1;34m[apps]\033[0m %s\n' "$*"; }
+warn() { printf '\033[1;33m[apps]\033[0m %s\n' "$*" >&2; }
+ok()   { printf '\033[1;32m[apps]\033[0m %s\n' "$*"; }
 
 if [ "$(id -u)" -eq 0 ]; then
-  die "Ne lance pas ce script en root : utilise ton utilisateur normal."
+  printf '\033[1;31m[apps]\033[0m Ne lance pas ce script en root : utilise ton utilisateur normal.\n' >&2
+  exit 1
 fi
 
-if ! command -v curl >/dev/null 2>&1; then
-  die "curl est requis pour continuer."
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-curl -fsS --max-time 10 -o /dev/null https://archlinux.org \
-  || die "Pas d'accès à Internet."
+declare -a INSTALLED=()
+declare -a FAILED=()
+declare -a SKIPPED=()
 
-# Demande le mot de passe sudo une fois.
-sudo -v
-
-# Maintient sudo actif pendant les compilations AUR.
-(
-  while true; do
-    sudo -n true
-    sleep 50
-    kill -0 "$$" 2>/dev/null || exit
-  done
-) &
-
-KEEPALIVE_PID=$!
-
-cleanup() {
-  kill "$KEEPALIVE_PID" 2>/dev/null || true
+record_success() {
+  INSTALLED+=("$1")
 }
 
-trap cleanup EXIT
-
-# --- 1. Installation de paru -------------------------------------------------
-
-log "Installation ou vérification de paru…"
-bash "$SCRIPT_DIR/10-paru.sh"
-
-if ! command -v paru >/dev/null 2>&1; then
-  die "paru est introuvable après l'exécution de 10-paru.sh."
-fi
-
-# --- 2. Installation de Caelestia --------------------------------------------
-
-log "Installation de la CLI Caelestia depuis l'AUR…"
-paru -S --needed --noconfirm caelestia-cli
-
-if ! command -v caelestia >/dev/null 2>&1; then
-  die "La commande caelestia est introuvable après son installation."
-fi
-
-log "Lancement de caelestia install…"
-caelestia install
-
-# --- 3. Préparation des dossiers Caelestia ------------------------------------
-
-log "Création des dossiers Caelestia…"
-
-mkdir -p "$WALLPAPER_DIR"
-mkdir -p "$CAELESTIA_CONFIG_DIR"
-mkdir -p "$CAELESTIA_ASSET_DIR"
-
-# --- 4. Installation du wallpaper --------------------------------------------
-
-if [ -f "$WALLPAPER_SOURCE" ]; then
-  log "Copie du wallpaper par défaut…"
-
-  install -Dm644 \
-    "$WALLPAPER_SOURCE" \
-    "$INSTALLED_WALLPAPER"
-
-  ok "Wallpaper installé : $INSTALLED_WALLPAPER"
-else
-  warn "Wallpaper introuvable : $WALLPAPER_SOURCE"
-  warn "Ajoute une image à assets/wallpapers/default.jpg."
-fi
-
-# --- 5. Installation du GIF du menu d'alimentation ----------------------------
-
-if [ -f "$SESSION_GIF_SOURCE" ]; then
-  log "Copie du GIF du menu d'alimentation…"
-
-  install -Dm644 \
-    "$SESSION_GIF_SOURCE" \
-    "$INSTALLED_SESSION_GIF"
-
-  ok "GIF installé : $INSTALLED_SESSION_GIF"
-else
-  warn "GIF introuvable : $SESSION_GIF_SOURCE"
-  warn "Ajoute un GIF à assets/gifs/session.gif."
-fi
-
-# --- 6. Configuration de shell.json -------------------------------------------
-
-# shell.json n'est pas forcément créé par Caelestia.
-# jq permet de conserver les autres options existantes.
-if ! command -v jq >/dev/null 2>&1; then
-  log "Installation de jq…"
-  sudo pacman -S --needed --noconfirm jq
-fi
-
-log "Configuration de shell.json…"
-
-TEMP_SHELL_CONFIG="$(mktemp)"
-
-if [ -f "$SHELL_CONFIG" ]; then
-  if ! jq empty "$SHELL_CONFIG" >/dev/null 2>&1; then
-    warn "$SHELL_CONFIG contient un JSON invalide."
-    warn "Une nouvelle configuration minimale sera créée."
-    rm -f "$SHELL_CONFIG"
-  fi
-fi
-
-if [ -f "$SHELL_CONFIG" ]; then
-  jq \
-    --arg wallpaper_dir "$WALLPAPER_DIR" \
-    --arg session_gif "$INSTALLED_SESSION_GIF" \
-    '
-      .paths = ((.paths // {}) + {
-        wallpaperDir: $wallpaper_dir,
-        sessionGif: $session_gif
-      })
-    ' \
-    "$SHELL_CONFIG" > "$TEMP_SHELL_CONFIG"
-else
-  jq -n \
-    --arg wallpaper_dir "$WALLPAPER_DIR" \
-    --arg session_gif "$INSTALLED_SESSION_GIF" \
-    '
-      {
-        paths: {
-          wallpaperDir: $wallpaper_dir,
-          sessionGif: $session_gif
-        }
-      }
-    ' > "$TEMP_SHELL_CONFIG"
-fi
-
-install -Dm644 "$TEMP_SHELL_CONFIG" "$SHELL_CONFIG"
-rm -f "$TEMP_SHELL_CONFIG"
-
-ok "shell.json configuré."
-
-# --- 7. Sélection du wallpaper et du scheme dynamique ------------------------
-
-if [ -f "$INSTALLED_WALLPAPER" ]; then
-  log "Sélection du wallpaper par défaut…"
-
-  if caelestia wallpaper -f "$INSTALLED_WALLPAPER"; then
-    ok "Wallpaper sélectionné."
-  else
-    warn "Le wallpaper n'a pas pu être sélectionné pendant l'installation."
-    warn "Si nécessaire, lance cette commande après ta connexion à Hyprland :"
-    warn "  caelestia wallpaper -f \"$INSTALLED_WALLPAPER\""
-  fi
-
-  log "Activation du scheme dynamique…"
-
-  if caelestia scheme set -n dynamic; then
-    ok "Scheme dynamique activé."
-  else
-    warn "Le scheme dynamique n'a pas pu être activé pendant l'installation."
-    warn "Si nécessaire, lance cette commande après ta connexion à Hyprland :"
-    warn "  caelestia scheme set -n dynamic"
-  fi
-fi
-
-# --- 8. Configuration d'Opera et de SUPER + W -------------------------------
-
-# La configuration Lua moderne de Caelestia utilise :
-#
-#   return {
-#     browser = "opera",
-#   }
-#
-# Le raccourci SUPER + W utilise déjà la variable kbBrowser par défaut.
-# On modifie donc uniquement browser.
-
-log "Configuration d'Opera comme navigateur par défaut…"
-
-if [ -f "$HYPR_VARS" ]; then
-  if grep -Eq '^[[:space:]]*browser[[:space:]]*=' "$HYPR_VARS"; then
-    sed -i \
-      -E 's/^([[:space:]]*browser[[:space:]]*=[[:space:]]*).*/\1"opera",/' \
-      "$HYPR_VARS"
-
-    ok "Navigateur par défaut configuré sur Opera."
-  elif grep -Eq '^[[:space:]]*return[[:space:]]*\{' "$HYPR_VARS"; then
-    # Ajoute browser juste avant la dernière accolade fermante.
-    sed -i '$i\  browser = "opera",' "$HYPR_VARS"
-    ok "Opera ajouté à hypr-vars.lua."
-  else
-    warn "Format inattendu dans $HYPR_VARS."
-    warn "Ajoute manuellement : browser = \"opera\","
-  fi
-else
-  cat > "$HYPR_VARS" <<'EOF'
-return {
-  browser = "opera",
+record_failure() {
+  FAILED+=("$1")
 }
-EOF
 
-  ok "hypr-vars.lua créé avec Opera comme navigateur par défaut."
+record_skipped() {
+  SKIPPED+=("$1")
+}
+
+install_official() {
+  local name="$1"
+  shift
+  local -a packages=("$@")
+
+  log "Installation officielle : $name"
+  if sudo pacman -S --needed --noconfirm "${packages[@]}"; then
+    record_success "$name"
+  else
+    warn "Échec de l'installation officielle : $name"
+    record_failure "$name"
+  fi
+}
+
+install_aur() {
+  local name="$1"
+  shift
+  local -a packages=("$@")
+
+  if ! command -v paru >/dev/null 2>&1; then
+    warn "paru est absent : impossible d'installer $name."
+    record_failure "$name"
+    return 1
+  fi
+
+  log "Installation AUR : $name"
+  if paru -S --needed --noconfirm "${packages[@]}"; then
+    record_success "$name"
+  else
+    warn "Échec de l'installation AUR : $name"
+    record_failure "$name"
+  fi
+}
+
+install_npm() {
+  local name="$1"
+  shift
+  local -a packages=("$@")
+
+  log "Installation npm : $name"
+
+  if ! command -v npm >/dev/null 2>&1; then
+    warn "npm est absent : installation de nodejs et npm…"
+    if ! sudo pacman -S --needed --noconfirm nodejs npm; then
+      warn "Impossible d'installer nodejs/npm."
+      record_failure "$name"
+      return 1
+    fi
+  fi
+
+  if npm install --global "${packages[@]}"; then
+    record_success "$name"
+  else
+    warn "Échec de l'installation npm : $name"
+    record_failure "$name"
+  fi
+}
+
+log "Mise à jour du système avant l'installation des applications…"
+if ! sudo pacman -Syu --noconfirm; then
+  warn "La mise à jour complète a échoué. Les installations vont quand même continuer."
 fi
 
-# Vérifie que le raccourci SUPER + W reste configuré.
-# Si une configuration utilisateur existe déjà, on ne l'écrase pas.
-if grep -Eq '^[[:space:]]*kbBrowser[[:space:]]*=' "$HYPR_VARS" 2>/dev/null; then
-  log "Le raccourci kbBrowser existant est conservé."
+# -------------------------------------------------------------------------------
+# Paquets officiels Arch/CachyOS
+# -------------------------------------------------------------------------------
+
+install_official "Steam" steam
+
+install_official "PHP" php php-gd php-intl php-sqlite php-pgsql php-apache
+
+install_official "Python" python python-pip python-virtualenv
+
+install_official "Git" git
+
+install_official "Docker Engine" docker docker-compose docker-buildx
+
+install_official "Java" jdk-openjdk
+
+install_official "Kotlin" kotlin
+
+install_official "Composer" composer
+
+install_official "DBeaver" dbeaver
+
+# MariaDB fournit un serveur compatible avec l'écosystème MySQL.
+install_official "MariaDB / serveur compatible MySQL" mariadb
+
+install_official "LibreOffice" libreoffice-fresh libreoffice-fresh-fr
+
+install_official "Dépendances ani-cli" mpv fzf yt-dlp
+install_aur "ani-cli" ani-cli
+
+# Symfony CLI est généralement disponible dans l'AUR plutôt que dans les dépôts
+# officiels selon l'état courant des dépôts.
+install_aur "Symfony CLI" symfony-cli
+
+# -------------------------------------------------------------------------------
+# Paquets AUR
+# -------------------------------------------------------------------------------
+
+install_aur "Opera" opera
+
+install_aur "JetBrains Toolbox" jetbrains-toolbox
+
+install_aur "Obsidian" obsidian
+
+install_aur "Spotify" spotify
+
+install_aur "Discord" discord
+
+install_aur "GitHub Desktop" github-desktop-bin
+
+install_aur "VSCodium" vscodium-bin
+
+install_aur "Bitwarden Desktop" bitwarden
+
+install_aur "HyprMod" hyprmod
+
+# -------------------------------------------------------------------------------
+# Docker
+# -------------------------------------------------------------------------------
+
+log "Configuration de Docker Engine…"
+
+if pacman -Q docker >/dev/null 2>&1; then
+  if sudo systemctl enable --now docker.service; then
+    ok "Docker Engine activé."
+  else
+    warn "Docker Engine installé mais impossible à démarrer."
+    record_failure "Activation de Docker Engine"
+  fi
+
+  if sudo usermod -aG docker "$USER"; then
+    ok "Utilisateur $USER ajouté au groupe docker."
+    warn "Déconnecte-toi puis reconnecte-toi pour appliquer le groupe docker."
+  else
+    warn "Impossible d'ajouter $USER au groupe docker."
+    record_failure "Groupe docker"
+  fi
 fi
 
-# --- 9. Configuration du clavier dans Hyprland -------------------------------
+# Docker Desktop n'est pas installé en parallèle de Docker Engine.
+# Cela évite d'introduire des conflits ou deux moteurs concurrents.
+warn "Docker Desktop n'est pas installé automatiquement : Docker Engine est utilisé à la place."
+record_skipped "Docker Desktop"
 
-# Caelestia démarre généralement en clavier US.
-# On reprend le KEYMAP de /etc/vconsole.conf, sauf si KB_LAYOUT est fourni.
+# -------------------------------------------------------------------------------
+# Mermaid CLI
+# -------------------------------------------------------------------------------
 
-KEYMAP_FROM_CONSOLE="$(
-  sed -n 's/^KEYMAP=//p' /etc/vconsole.conf 2>/dev/null \
-    | head -n1 \
-    || true
-)"
+install_official "Mermaid CLI" mermaid-cli
 
-KB_LAYOUT="${KB_LAYOUT:-${KEYMAP_FROM_CONSOLE%%-*}}"
-KB_LAYOUT="${KB_LAYOUT:-fr}"
+# -------------------------------------------------------------------------------
+# Claude Desktop
+# -------------------------------------------------------------------------------
 
-mkdir -p "$(dirname "$HYPR_USER")"
+# Aucun paquet Arch fiable n'est imposé ici.
+# Une installation manuelle spécifique pourra être ajoutée plus tard.
+warn "Claude Desktop n'est pas installé automatiquement : paquet Linux/Arch non défini."
+record_skipped "Claude Desktop"
 
-if ! grep -q 'arch-setup: keyboard' "$HYPR_USER" 2>/dev/null; then
-  log "Configuration du clavier Hyprland : $KB_LAYOUT"
+# -------------------------------------------------------------------------------
+# Initialisation facultative de MariaDB
+# -------------------------------------------------------------------------------
 
-  cat >> "$HYPR_USER" <<EOF
+if pacman -Q mariadb >/dev/null 2>&1; then
+  log "MariaDB est installé."
+  warn "Le service MariaDB n'est pas initialisé ni démarré automatiquement."
+  warn "Pour l'initialiser plus tard : sudo mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql"
+  warn "Puis : sudo systemctl enable --now mariadb.service"
+fi
 
--- arch-setup: keyboard
--- Ajouté par firstboot/20-hyprland-caelestia.sh
-hl.config({
-  input = {
-    kb_layout = "$KB_LAYOUT",
-  },
-})
-EOF
+# -------------------------------------------------------------------------------
+# Vérifications finales
+# -------------------------------------------------------------------------------
 
-  ok "Disposition clavier configurée."
+printf '\n'
+log "Installation des applications terminée."
+
+printf '\n\033[1;32mInstallés ou déjà présents :\033[0m\n'
+if [ "${#INSTALLED[@]}" -eq 0 ]; then
+  printf '  Aucun\n'
 else
-  log "Configuration du clavier déjà présente."
+  printf '  - %s\n' "${INSTALLED[@]}"
 fi
 
-# --- 10. Installation et configuration de greetd ----------------------------
-
-log "Installation de greetd et tuigreet…"
-sudo pacman -S --needed --noconfirm greetd greetd-tuigreet
-
-LAUNCHER="Hyprland"
-
-if command -v start-hyprland >/dev/null 2>&1; then
-  LAUNCHER="start-hyprland"
+printf '\n\033[1;33mIgnorés volontairement :\033[0m\n'
+if [ "${#SKIPPED[@]}" -eq 0 ]; then
+  printf '  Aucun\n'
+else
+  printf '  - %s\n' "${SKIPPED[@]}"
 fi
 
-log "Configuration de greetd avec le lanceur : $LAUNCHER"
-
-sudo tee /etc/greetd/config.toml >/dev/null <<EOF
-[terminal]
-vt = 1
-
-[default_session]
-command = "tuigreet --time --remember --cmd $LAUNCHER"
-user = "greeter"
-EOF
-
-sudo systemctl enable greetd.service
-
-# --- Fin ----------------------------------------------------------------------
-
-log "Installation de Caelestia terminée."
+printf '\n\033[1;31mÉchecs :\033[0m\n'
+if [ "${#FAILED[@]}" -eq 0 ]; then
+  printf '  Aucun\n'
+else
+  printf '  - %s\n' "${FAILED[@]}"
+fi
 
 printf '\n'
-printf 'Configuration appliquée :\n'
-printf '  Wallpaper : %s\n' "$INSTALLED_WALLPAPER"
-printf '  GIF menu alimentation : %s\n' "$INSTALLED_SESSION_GIF"
-printf '  Scheme : dynamic\n'
-printf '  Navigateur : Opera\n'
-printf '  Raccourci navigateur : SUPER + W\n'
-printf '  Clavier : %s\n' "$KB_LAYOUT"
-
-printf '\n'
-log "Redémarre avec : sudo reboot"
-
-warn "Dans VirtualBox, Hyprland peut ne pas démarrer à cause de l'accélération 3D limitée."
-warn "Si le wallpaper ou le scheme n'est pas appliqué après le redémarrage, exécute :"
-warn "  caelestia wallpaper -f \"$INSTALLED_WALLPAPER\""
-warn "  caelestia scheme set -n dynamic"
+warn "Si Docker a été installé, déconnecte-toi puis reconnecte-toi."
+warn "Un redémarrage est recommandé après l'installation des applications."

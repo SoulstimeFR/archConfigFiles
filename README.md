@@ -227,7 +227,7 @@ Variables disponibles :
 
 ## Étapes après le premier démarrage
 
-Les scripts `firstboot` doivent être exécutés **un par un**, dans l'ordre indiqué, avec l'utilisateur normal créé pendant l'installation.
+Les scripts `firstboot` doivent être exécutés **un par un**, dans l'ordre indiqué, avec l'utilisateur normal créé pendant l'installation. Chaque fois qu'il vous est demandé de choisir entre plusieurs versions d'un fichier, faites ENTRER (ou premier choix), et chaque fois qu'on vous demande une autorisation (Y/N), répondez toujours Y (Oui).
 
 > Ne lance pas ces scripts avec `sudo` et ne les lance pas directement en root.
 

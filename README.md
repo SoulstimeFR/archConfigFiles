@@ -110,6 +110,15 @@ Le script d'installation ne prend pas en charge le mode BIOS/legacy.
 
 ## Installation depuis l'ISO Arch
 
+### (Optionnel) Changement de langue d'entrée
+
+Permet de changer la langue d'entrée (clavier) d'US (QWERTY) à FR (AZERTY).
+
+```bash
+loadkeys fr
+```
+
+
 ### Connexion Ethernet
 
 Avec une connexion Ethernet, aucune configuration particulière n'est généralement nécessaire.
@@ -137,7 +146,7 @@ Le nom de l'interface peut être différent de `wlan0`. Utilise `station list` o
 Teste ensuite la connexion :
 
 ```bash
-ping -c 3 archlinux.org
+ping -c 3 google.com
 ```
 
 ### Lancer l'installation
@@ -145,9 +154,7 @@ ping -c 3 archlinux.org
 Depuis l'ISO Arch :
 
 ```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/SoulstimeFR/archConfigFiles/main/bootstrap.sh \
-  | bash
+curl -fsSL https://raw.githubusercontent.com/SoulstimeFR/archConfigFiles/main/bootstrap.sh | bash
 ```
 
 Le script demande notamment :

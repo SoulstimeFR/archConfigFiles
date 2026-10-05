@@ -11,7 +11,7 @@
 #   - greetd + tuigreet.
 #
 # Assets attendus dans le dépôt :
-#   assets/wallpapers/default.jpg
+#   assets/wallpapers/default.png
 #   assets/gifs/session.gif
 #
 # À lancer avec un utilisateur normal, pas avec sudo.
@@ -23,13 +23,13 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # --- Fichiers sources dans le dépôt -------------------------------------------
 
-WALLPAPER_SOURCE="$REPO_DIR/assets/wallpapers/default.jpg"
+WALLPAPER_SOURCE="$REPO_DIR/assets/wallpapers/default.png"
 SESSION_GIF_SOURCE="$REPO_DIR/assets/gifs/session.gif"
 
 # --- Chemins de destination ---------------------------------------------------
 
 WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
-INSTALLED_WALLPAPER="$WALLPAPER_DIR/default.jpg"
+INSTALLED_WALLPAPER="$WALLPAPER_DIR/default.png"
 
 CAELESTIA_CONFIG_DIR="$HOME/.config/caelestia"
 SHELL_CONFIG="$CAELESTIA_CONFIG_DIR/shell.json"
@@ -132,7 +132,7 @@ if [ -f "$WALLPAPER_SOURCE" ]; then
   ok "Wallpaper installé : $INSTALLED_WALLPAPER"
 else
   warn "Wallpaper introuvable : $WALLPAPER_SOURCE"
-  warn "Ajoute une image à assets/wallpapers/default.jpg."
+  warn "Ajoute une image à assets/wallpapers/default.png."
 fi
 
 # --- 5. Installation du GIF du menu d'alimentation ----------------------------

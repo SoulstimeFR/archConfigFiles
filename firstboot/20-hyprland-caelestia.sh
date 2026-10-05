@@ -39,6 +39,41 @@ paru -S --needed --noconfirm caelestia-cli
 log "Lancement de 'caelestia install' (répond aux questions éventuelles)…"
 caelestia install
 
+# --- 2a. Wallpaper et thème dynamique -----------------------------------------
+# Caelestia stocke les wallpapers par défaut dans ~/Pictures/Wallpapers.
+WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+DEFAULT_WALLPAPER="$SCRIPT_DIR/../assets/wallpapers/default.png"
+INSTALLED_WALLPAPER="$WALLPAPER_DIR/default.png"
+
+log "Préparation du dossier des wallpapers…"
+mkdir -p "$WALLPAPER_DIR"
+
+if [ -f "$DEFAULT_WALLPAPER" ]; then
+  log "Copie du wallpaper par défaut dans $WALLPAPER_DIR…"
+  install -Dm644 "$DEFAULT_WALLPAPER" "$INSTALLED_WALLPAPER"
+
+  if command -v caelestia >/dev/null 2>&1; then
+    log "Application du wallpaper par défaut…"
+    if ! caelestia wallpaper -f "$INSTALLED_WALLPAPER"; then
+      warn "Impossible de fixer le wallpaper automatiquement."
+      warn "Tu peux le faire plus tard avec :"
+      warn "  caelestia wallpaper -f \"$INSTALLED_WALLPAPER\""
+    fi
+
+    log "Sélection du schéma dynamique Caelestia…"
+    if ! caelestia scheme set -n dynamic; then
+      warn "Impossible de sélectionner le schéma dynamique automatiquement."
+      warn "Tu peux le faire plus tard avec :"
+      warn "  caelestia scheme set -n dynamic"
+    fi
+  else
+    warn "Commande 'caelestia' introuvable : wallpaper et schéma non appliqués."
+  fi
+else
+  warn "Wallpaper par défaut introuvable : $DEFAULT_WALLPAPER"
+  warn "Crée ce fichier ou ajoute un autre wallpaper dans ~/Pictures/Wallpapers."
+fi
+
 # --- 2b. Disposition du clavier dans Hyprland ---------------------------------
 # Caelestia démarre en clavier "us" par défaut. On reprend la disposition de la
 # console (KEYMAP de /etc/vconsole.conf, fixée par install.sh), sauf si KB_LAYOUT

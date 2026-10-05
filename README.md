@@ -146,7 +146,7 @@ Le nom de l'interface peut être différent de `wlan0`. Utilise `station list` o
 Teste ensuite la connexion :
 
 ```bash
-ping -c 3 archlinux.org
+ping -c 3 google.com
 ```
 
 ### Lancer l'installation

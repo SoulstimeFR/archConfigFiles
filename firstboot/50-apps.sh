@@ -131,7 +131,8 @@ install_official "MariaDB / serveur compatible MySQL" mariadb
 
 install_official "LibreOffice" libreoffice-fresh libreoffice-fresh-fr
 
-install_official "ani-cli" ani-cli
+install_official "Dépendances ani-cli" mpv fzf yt-dlp
+install_aur "ani-cli" ani-cli
 
 # Symfony CLI est généralement disponible dans l'AUR plutôt que dans les dépôts
 # officiels selon l'état courant des dépôts.
@@ -156,10 +157,6 @@ install_aur "GitHub Desktop" github-desktop-bin
 install_aur "VSCodium" vscodium-bin
 
 install_aur "Bitwarden Desktop" bitwarden
-
-# Nom courant du paquet AUR pour Mermaid Desktop/CLI dans certaines versions.
-# La CLI officielle reste installée via npm ci-dessous.
-install_aur "Mermaid CLI helper" mermaid-cli
 
 # -------------------------------------------------------------------------------
 # Docker
@@ -193,7 +190,7 @@ record_skipped "Docker Desktop"
 # Mermaid CLI
 # -------------------------------------------------------------------------------
 
-install_npm "Mermaid CLI" @mermaid-js/mermaid-cli
+install_official "Mermaid CLI" mermaid-cli
 
 # -------------------------------------------------------------------------------
 # Claude Desktop

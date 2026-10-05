@@ -1,43 +1,40 @@
 #!/usr/bin/env bash
 # firstboot/20-hyprland-caelestia.sh
 #
-# Installe Hyprland + Caelestia et applique la configuration personnelle :
-#   - wallpaper par défaut ;
-#   - scheme dynamique ;
-#   - GIF personnalisé du menu d'alimentation ;
-#   - Opera comme navigateur par défaut ;
-#   - SUPER + W pour lancer Opera ;
-#   - disposition clavier ;
-#   - greetd + tuigreet.
+# Installe et configure Hyprland + Caelestia.
 #
 # Assets attendus dans le dépôt :
 #   assets/wallpapers/default.png
 #   assets/gifs/session.gif
+#   assets/profile/profile.png
 #
-# À lancer avec un utilisateur normal, pas avec sudo.
+# Le script doit être lancé avec l'utilisateur normal, pas avec sudo.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# --- Fichiers sources dans le dépôt -------------------------------------------
+# --- Assets -------------------------------------------------------------------
 
 WALLPAPER_SOURCE="$REPO_DIR/assets/wallpapers/default.png"
 SESSION_GIF_SOURCE="$REPO_DIR/assets/gifs/session.gif"
+PROFILE_SOURCE="$REPO_DIR/assets/profile/profile.png"
 
-# --- Chemins de destination ---------------------------------------------------
+# --- Destinations -------------------------------------------------------------
 
 WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
 INSTALLED_WALLPAPER="$WALLPAPER_DIR/default.png"
 
 CAELESTIA_CONFIG_DIR="$HOME/.config/caelestia"
+CAELESTIA_ASSET_DIR="$CAELESTIA_CONFIG_DIR/assets"
+
 SHELL_CONFIG="$CAELESTIA_CONFIG_DIR/shell.json"
 HYPR_VARS="$CAELESTIA_CONFIG_DIR/hypr-vars.lua"
 HYPR_USER="$CAELESTIA_CONFIG_DIR/hypr-user.lua"
 
-CAELESTIA_ASSET_DIR="$CAELESTIA_CONFIG_DIR/assets"
 INSTALLED_SESSION_GIF="$CAELESTIA_ASSET_DIR/session.gif"
+PROFILE_DEST="$HOME/.face"
 
 # --- Fonctions ----------------------------------------------------------------
 
@@ -74,7 +71,7 @@ curl -fsS --max-time 10 -o /dev/null https://archlinux.org \
 # Demande le mot de passe sudo une fois.
 sudo -v
 
-# Maintient sudo actif pendant les compilations AUR.
+# Maintient sudo actif pendant les opérations longues.
 (
   while true; do
     sudo -n true
@@ -112,7 +109,7 @@ fi
 log "Lancement de caelestia install…"
 caelestia install
 
-# --- 3. Préparation des dossiers Caelestia ------------------------------------
+# --- 3. Création des dossiers -------------------------------------------------
 
 log "Création des dossiers Caelestia…"
 
@@ -123,7 +120,7 @@ mkdir -p "$CAELESTIA_ASSET_DIR"
 # --- 4. Installation du wallpaper --------------------------------------------
 
 if [ -f "$WALLPAPER_SOURCE" ]; then
-  log "Copie du wallpaper par défaut…"
+  log "Installation du wallpaper par défaut…"
 
   install -Dm644 \
     "$WALLPAPER_SOURCE" \
@@ -132,13 +129,13 @@ if [ -f "$WALLPAPER_SOURCE" ]; then
   ok "Wallpaper installé : $INSTALLED_WALLPAPER"
 else
   warn "Wallpaper introuvable : $WALLPAPER_SOURCE"
-  warn "Ajoute une image à assets/wallpapers/default.png."
+  warn "Ajoute ton image dans assets/wallpapers/default.png."
 fi
 
 # --- 5. Installation du GIF du menu d'alimentation ----------------------------
 
 if [ -f "$SESSION_GIF_SOURCE" ]; then
-  log "Copie du GIF du menu d'alimentation…"
+  log "Installation du GIF du menu d'alimentation…"
 
   install -Dm644 \
     "$SESSION_GIF_SOURCE" \
@@ -147,13 +144,29 @@ if [ -f "$SESSION_GIF_SOURCE" ]; then
   ok "GIF installé : $INSTALLED_SESSION_GIF"
 else
   warn "GIF introuvable : $SESSION_GIF_SOURCE"
-  warn "Ajoute un GIF à assets/gifs/session.gif."
+  warn "Ajoute ton GIF dans assets/gifs/session.gif."
 fi
 
-# --- 6. Configuration de shell.json -------------------------------------------
+# --- 6. Installation de la photo de profil ------------------------------------
 
-# shell.json n'est pas forcément créé par Caelestia.
-# jq permet de conserver les autres options existantes.
+if [ -f "$PROFILE_SOURCE" ]; then
+  log "Installation de la photo de profil…"
+
+  # ~/.face doit être un fichier image et non un dossier.
+  rm -rf "$PROFILE_DEST"
+
+  install -Dm644 \
+    "$PROFILE_SOURCE" \
+    "$PROFILE_DEST"
+
+  ok "Photo de profil installée : $PROFILE_DEST"
+else
+  warn "Photo de profil introuvable : $PROFILE_SOURCE"
+  warn "Ajoute une image PNG dans assets/profile/profile.png."
+fi
+
+# --- 7. Configuration de shell.json -------------------------------------------
+
 if ! command -v jq >/dev/null 2>&1; then
   log "Installation de jq…"
   sudo pacman -S --needed --noconfirm jq
@@ -163,15 +176,9 @@ log "Configuration de shell.json…"
 
 TEMP_SHELL_CONFIG="$(mktemp)"
 
-if [ -f "$SHELL_CONFIG" ]; then
-  if ! jq empty "$SHELL_CONFIG" >/dev/null 2>&1; then
-    warn "$SHELL_CONFIG contient un JSON invalide."
-    warn "Une nouvelle configuration minimale sera créée."
-    rm -f "$SHELL_CONFIG"
-  fi
-fi
+if [ -f "$SHELL_CONFIG" ] \
+  && jq empty "$SHELL_CONFIG" >/dev/null 2>&1; then
 
-if [ -f "$SHELL_CONFIG" ]; then
   jq \
     --arg wallpaper_dir "$WALLPAPER_DIR" \
     --arg session_gif "$INSTALLED_SESSION_GIF" \
@@ -183,6 +190,11 @@ if [ -f "$SHELL_CONFIG" ]; then
     ' \
     "$SHELL_CONFIG" > "$TEMP_SHELL_CONFIG"
 else
+  if [ -f "$SHELL_CONFIG" ]; then
+    warn "$SHELL_CONFIG contient un JSON invalide."
+    warn "Une nouvelle configuration minimale sera créée."
+  fi
+
   jq -n \
     --arg wallpaper_dir "$WALLPAPER_DIR" \
     --arg session_gif "$INSTALLED_SESSION_GIF" \
@@ -201,7 +213,7 @@ rm -f "$TEMP_SHELL_CONFIG"
 
 ok "shell.json configuré."
 
-# --- 7. Sélection du wallpaper et du scheme dynamique ------------------------
+# --- 8. Sélection du wallpaper -----------------------------------------------
 
 if [ -f "$INSTALLED_WALLPAPER" ]; then
   log "Sélection du wallpaper par défaut…"
@@ -209,8 +221,8 @@ if [ -f "$INSTALLED_WALLPAPER" ]; then
   if caelestia wallpaper -f "$INSTALLED_WALLPAPER"; then
     ok "Wallpaper sélectionné."
   else
-    warn "Le wallpaper n'a pas pu être sélectionné pendant l'installation."
-    warn "Si nécessaire, lance cette commande après ta connexion à Hyprland :"
+    warn "Le wallpaper ne peut pas être sélectionné maintenant."
+    warn "Après ta connexion à Hyprland, exécute :"
     warn "  caelestia wallpaper -f \"$INSTALLED_WALLPAPER\""
   fi
 
@@ -219,23 +231,18 @@ if [ -f "$INSTALLED_WALLPAPER" ]; then
   if caelestia scheme set -n dynamic; then
     ok "Scheme dynamique activé."
   else
-    warn "Le scheme dynamique n'a pas pu être activé pendant l'installation."
-    warn "Si nécessaire, lance cette commande après ta connexion à Hyprland :"
+    warn "Le scheme dynamique ne peut pas être activé maintenant."
+    warn "Après ta connexion à Hyprland, exécute :"
     warn "  caelestia scheme set -n dynamic"
   fi
+else
+  warn "Wallpaper non installé : fichier source absent."
 fi
 
-# --- 8. Configuration d'Opera et de SUPER + W -------------------------------
+# --- 9. Configuration d'Opera et de Super + W --------------------------------
 
-# La configuration Lua moderne de Caelestia utilise :
-#
-#   return {
-#     browser = "opera",
-#   }
-#
-# Le raccourci SUPER + W utilise déjà la variable kbBrowser par défaut.
-# On modifie donc uniquement browser.
-
+# Caelestia utilise normalement la variable "browser" pour le raccourci
+# kbBrowser, correspondant par défaut à Super + W.
 log "Configuration d'Opera comme navigateur par défaut…"
 
 if [ -f "$HYPR_VARS" ]; then
@@ -244,13 +251,17 @@ if [ -f "$HYPR_VARS" ]; then
       -E 's/^([[:space:]]*browser[[:space:]]*=[[:space:]]*).*/\1"opera",/' \
       "$HYPR_VARS"
 
-    ok "Navigateur par défaut configuré sur Opera."
+    ok "La variable browser est configurée sur Opera."
   elif grep -Eq '^[[:space:]]*return[[:space:]]*\{' "$HYPR_VARS"; then
-    # Ajoute browser juste avant la dernière accolade fermante.
+    # Ajoute browser dans une configuration Lua de type :
+    # return {
+    #   ...
+    # }
     sed -i '$i\  browser = "opera",' "$HYPR_VARS"
+
     ok "Opera ajouté à hypr-vars.lua."
   else
-    warn "Format inattendu dans $HYPR_VARS."
+    warn "Format inconnu dans $HYPR_VARS."
     warn "Ajoute manuellement : browser = \"opera\","
   fi
 else
@@ -260,19 +271,10 @@ return {
 }
 EOF
 
-  ok "hypr-vars.lua créé avec Opera comme navigateur par défaut."
+  ok "hypr-vars.lua créé avec Opera."
 fi
 
-# Vérifie que le raccourci SUPER + W reste configuré.
-# Si une configuration utilisateur existe déjà, on ne l'écrase pas.
-if grep -Eq '^[[:space:]]*kbBrowser[[:space:]]*=' "$HYPR_VARS" 2>/dev/null; then
-  log "Le raccourci kbBrowser existant est conservé."
-fi
-
-# --- 9. Configuration du clavier dans Hyprland -------------------------------
-
-# Caelestia démarre généralement en clavier US.
-# On reprend le KEYMAP de /etc/vconsole.conf, sauf si KB_LAYOUT est fourni.
+# --- 10. Configuration du clavier Hyprland -----------------------------------
 
 KEYMAP_FROM_CONSOLE="$(
   sed -n 's/^KEYMAP=//p' /etc/vconsole.conf 2>/dev/null \
@@ -304,7 +306,7 @@ else
   log "Configuration du clavier déjà présente."
 fi
 
-# --- 10. Installation et configuration de greetd ----------------------------
+# --- 11. Installation de greetd ----------------------------------------------
 
 log "Installation de greetd et tuigreet…"
 sudo pacman -S --needed --noconfirm greetd greetd-tuigreet
@@ -328,23 +330,22 @@ EOF
 
 sudo systemctl enable greetd.service
 
-# --- Fin ----------------------------------------------------------------------
-
-log "Installation de Caelestia terminée."
+# --- Résumé -------------------------------------------------------------------
 
 printf '\n'
-printf 'Configuration appliquée :\n'
+log "Installation et configuration de Caelestia terminées."
+
+printf '\n'
+printf 'Configuration :\n'
 printf '  Wallpaper : %s\n' "$INSTALLED_WALLPAPER"
-printf '  GIF menu alimentation : %s\n' "$INSTALLED_SESSION_GIF"
+printf '  GIF : %s\n' "$INSTALLED_SESSION_GIF"
+printf '  Photo de profil : %s\n' "$PROFILE_DEST"
 printf '  Scheme : dynamic\n'
 printf '  Navigateur : Opera\n'
-printf '  Raccourci navigateur : SUPER + W\n'
+printf '  Raccourci : Super + W\n'
 printf '  Clavier : %s\n' "$KB_LAYOUT"
 
 printf '\n'
 log "Redémarre avec : sudo reboot"
 
 warn "Dans VirtualBox, Hyprland peut ne pas démarrer à cause de l'accélération 3D limitée."
-warn "Si le wallpaper ou le scheme n'est pas appliqué après le redémarrage, exécute :"
-warn "  caelestia wallpaper -f \"$INSTALLED_WALLPAPER\""
-warn "  caelestia scheme set -n dynamic"

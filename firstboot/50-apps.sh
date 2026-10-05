@@ -158,6 +158,8 @@ install_aur "VSCodium" vscodium-bin
 
 install_aur "Bitwarden Desktop" bitwarden
 
+install_aur "HyprMod" hyprmod
+
 # -------------------------------------------------------------------------------
 # Docker
 # -------------------------------------------------------------------------------

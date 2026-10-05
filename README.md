@@ -221,28 +221,14 @@ Variables disponibles :
 
 ## Étapes après le premier démarrage
 
-Les scripts doivent être lancés **séparément**, dans l'ordre indiqué.
+Les scripts `firstboot` doivent être exécutés **un par un**, dans l'ordre indiqué, avec l'utilisateur normal créé pendant l'installation.
 
-Le dépôt est normalement disponible ici :
-
-```text
-~/arch-setup
-```
-
----
+> Ne lance pas ces scripts avec `sudo` et ne les lance pas directement en root.
 
 ### Étape 1 : installer Hyprland et Caelestia
 
-Lance :
-
 ```bash
 bash ~/arch-setup/firstboot/20-hyprland-caelestia.sh
-```
-
-Puis redémarre :
-
-```bash
-sudo reboot
 ```
 
 Ce script configure :
@@ -256,29 +242,36 @@ Ce script configure :
 - le scheme dynamique ;
 - le GIF du menu d'alimentation ;
 - la photo de profil ;
-- Opera comme navigateur ;
-- `Super + W` pour lancer Opera ;
+- Opera pour `Super + W` ;
 - le clavier Hyprland.
 
-Le script `10-paru.sh` est lancé automatiquement par ce script. Il n'est normalement pas nécessaire de l'exécuter manuellement.
+Ne redémarre pas encore après cette étape.
 
 ---
 
 ### Étape 2 : installer le noyau CachyOS
 
-Après le redémarrage :
+Toujours dans la même session, lance ensuite :
 
 ```bash
 bash ~/arch-setup/firstboot/30-cachyos-kernel.sh
 ```
 
-Puis redémarre :
+Ce script :
+
+- ajoute les dépôts CachyOS ;
+- installe `linux-cachyos` ;
+- installe les headers du noyau ;
+- configure GRUB ;
+- conserve temporairement le noyau Arch comme solution de secours.
+
+Une fois le script terminé, redémarre :
 
 ```bash
 sudo reboot
 ```
 
-Vérifie ensuite que le noyau CachyOS est actif :
+Après le redémarrage, vérifie le noyau actif :
 
 ```bash
 uname -r
@@ -299,26 +292,17 @@ Ne continue pas si le noyau CachyOS n'est pas actif.
 Après avoir redémarré sur le noyau CachyOS :
 
 ```bash
-uname -r
-```
-
-Puis lance :
-
-```bash
 bash ~/arch-setup/firstboot/40-drivers.sh
 ```
 
 Ce script détecte et configure notamment :
 
-- les cartes graphiques Intel ;
-- les cartes graphiques AMD ;
-- les cartes NVIDIA ;
+- les cartes graphiques Intel, AMD et NVIDIA ;
 - les portables hybrides ;
 - Mesa et Vulkan ;
 - la gestion de l'énergie ;
-- la luminosité ;
-- thermald sur les portables Intel ;
-- Bluetooth.
+- Bluetooth ;
+- les pilotes matériels adaptés.
 
 Redémarre ensuite :
 
@@ -330,13 +314,15 @@ sudo reboot
 
 ### Étape 4 : installer les applications
 
-Après le redémarrage suivant :
+Après le redémarrage :
 
 ```bash
 bash ~/arch-setup/firstboot/50-apps.sh
 ```
 
-Puis redémarre lorsque le script est terminé :
+Ce script installe les applications officielles et les paquets AUR configurés dans le dépôt.
+
+Un redémarrage est recommandé à la fin :
 
 ```bash
 sudo reboot
@@ -348,19 +334,15 @@ sudo reboot
 
 ```text
 1. bash ~/arch-setup/firstboot/20-hyprland-caelestia.sh
-2. sudo reboot
+2. bash ~/arch-setup/firstboot/30-cachyos-kernel.sh
+3. sudo reboot
 
-3. bash ~/arch-setup/firstboot/30-cachyos-kernel.sh
-4. sudo reboot
+4. Vérifier que uname -r contient « cachyos »
+5. bash ~/arch-setup/firstboot/40-drivers.sh
+6. sudo reboot
 
-5. uname -r
-6. Vérifier que la sortie contient « cachyos »
-
-7. bash ~/arch-setup/firstboot/40-drivers.sh
+7. bash ~/arch-setup/firstboot/50-apps.sh
 8. sudo reboot
-
-9. bash ~/arch-setup/firstboot/50-apps.sh
-10. sudo reboot
 ```
 
 ---

@@ -560,13 +560,13 @@ newgrp docker
 Ajoute le wallpaper dans le dépôt :
 
 ```text
-assets/wallpapers/default.jpg
+assets/wallpapers/default.png
 ```
 
 Lors de l'exécution de `20-hyprland-caelestia.sh`, il est copié vers :
 
 ```text
-~/Pictures/Wallpapers/default.jpg
+~/Pictures/Wallpapers/default.png
 ```
 
 Le dossier est créé automatiquement s'il n'existe pas.
@@ -574,13 +574,13 @@ Le dossier est créé automatiquement s'il n'existe pas.
 Le script tente également d'appliquer le wallpaper avec :
 
 ```bash
-caelestia wallpaper -f "$HOME/Pictures/Wallpapers/default.jpg"
+caelestia wallpaper -f "$HOME/Pictures/Wallpapers/default.png"
 ```
 
 Si cette commande ne fonctionne pas avant le premier lancement de Hyprland, exécute-la après la connexion :
 
 ```bash
-caelestia wallpaper -f "$HOME/Pictures/Wallpapers/default.jpg"
+caelestia wallpaper -f "$HOME/Pictures/Wallpapers/default.png"
 ```
 
 ---
@@ -818,7 +818,7 @@ archConfigFiles/
 │   ├── gifs/
 │   │   └── session.gif
 │   └── wallpapers/
-│       └── default.jpg
+│       └── default.png
 │
 ├── bootstrap.sh
 │   Point d'entrée depuis l'ISO Arch
@@ -930,13 +930,13 @@ journalctl -b -p err
 Vérifie que le fichier existe :
 
 ```bash
-ls -lh ~/Pictures/Wallpapers/default.jpg
+ls -lh ~/Pictures/Wallpapers/default.png
 ```
 
 Puis exécute :
 
 ```bash
-caelestia wallpaper -f ~/Pictures/Wallpapers/default.jpg
+caelestia wallpaper -f ~/Pictures/Wallpapers/default.png
 caelestia scheme set -n dynamic
 ```
 

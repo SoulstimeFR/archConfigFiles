@@ -62,13 +62,12 @@ bootstrap.sh
 
 ### Phase 2 : après le premier démarrage
 
-Les scripts `firstboot` doivent être lancés manuellement, un par un :
+Les scripts `firstboot` doivent être lancés dans cet ordre :
 
 ```text
 20-hyprland-caelestia.sh
         │
-        └── redémarrage
-
+        ↓
 30-cachyos-kernel.sh
         │
         └── redémarrage
